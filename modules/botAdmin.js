@@ -118,7 +118,7 @@ const Module = new Augur.Module()
       const client = msg.client;
 
       const embed = u.embed()
-      .setAuthor(client.user.username + " Heartbeat", client.user.displayAvatarURL())
+      .setAuthor({ name: client.user.username + " Heartbeat", iconURL: client.user.displayAvatarURL() })
       .setTimestamp();
 
       if (client.shard) {
@@ -169,6 +169,38 @@ const Module = new Augur.Module()
       } catch (error) { msg.client.errorHandler(error, msg); }
     }
     msg.react("👌").catch(u.noop);
+  }
+})
+.addCommand({ name: "emojiid",
+  description: "Get an emoji ID",
+  syntax: "<emoji name>",
+  category: "Admin",
+  hidden: true,
+  permissions: (msg) => msg.guild,
+  process: (msg, suffix) => {
+    if (!suffix) {
+      msg.reply("you need to tell me an emoji name!").then(u.clean);
+    } else {
+      const emoji = msg.guild.emojis.cache.find(r => r.name.toLowerCase() == suffix.toLowerCase());
+      if (!emoji) msg.reply(`I couldn't find an emoji named ${suffix}.`);
+      else msg.channel.send(`${emoji} \`${emoji.name}: ${emoji.id}\``);
+    }
+  }
+})
+.addCommand({ name: "roleid",
+  description: "Get a role ID",
+  syntax: "<role name>",
+  category: "Admin",
+  hidden: true,
+  permissions: (msg) => msg.guild,
+  process: (msg, suffix) => {
+    if (!suffix) {
+      msg.reply("you need to tell me a role name!").then(u.clean);
+    } else {
+      const role = msg.guild.roles.cache.find(r => r.name.toLowerCase() == suffix.toLowerCase());
+      if (!role) msg.reply(`I couldn't find a role named ${suffix}.`);
+      else msg.channel.send(`${role.name}: ${role.id}`);
+    }
   }
 })
 // When the bot is fully online, fetch all the ldsg members, since it will only autofetch for small servers and we want them all.

@@ -118,15 +118,21 @@ function processMessageLanguage(old, msg) {
  */
 function processDiscordInvites(msg) {
   const bot = msg.client;
-  let foundInvites = msg.cleanContent.match(/(http(s)?:\/\/)?discord(\.gg(\/invite)?|app\.com\/invite|\.com\/invite)\/[\w-]+/ig);
+  const matched = msg.cleanContent.match(/(http(s)?:\/\/)?discord(\.gg(\/invite)?|app\.com\/invite|\.com\/invite)\/[\w-]+/ig);
 
-  if (foundInvites) {
-    foundInvites = foundInvites.map(inv => bot.fetchInvite(inv.trim()));
+  if (matched) {
+    const foundInvites = matched.map(inv => bot.fetchInvite(inv.trim()));
 
     Promise.all(foundInvites).then((invites) => {
       if (invites.length > 0) {
         const external = invites.reduce((e, i) => (i && i.guild && (i.guild.id != sf.ldsg) ? e.concat(`Guild: ${i.guild.name}`, `Channel: ${i.channel.name}`) : e), ["External Discord Server Invite"]);
         if (external.length > 1) {
+          if (msg.webhookId) {
+            for (const invite of matched) msg.content = msg.content.replace(invite, "[Discord Invite]");
+            u.clean(msg, 0);
+            const embeds = [u.embed({ author: msg.author }).setDescription(msg.content)].concat(msg.embeds);
+            return msg.channel.send({ embeds: embeds, attachments: msg.attachments });
+          }
           c.createFlag({ msg, member: msg.member, matches: external });
           u.clean(msg, 0);
           msg.channel.send({ embeds: [
@@ -138,6 +144,12 @@ function processDiscordInvites(msg) {
       }
     }).catch(e => {
       if (e && e.message == "Unknown Invite") {
+        if (msg.webhookId) {
+          for (const invite of matched) msg.content = msg.content.replace(invite, "[Discord Invite]");
+          u.clean(msg, 0);
+          const embeds = [u.embed({ author: msg.author }).setDescription(msg.content)].concat(msg.embeds);
+          return msg.channel.send({ embeds: embeds, attachments: msg.attachments });
+        }
         c.createFlag({ msg, member: msg.member, matches: "Unknown Discord Server Invite" });
         u.clean(msg, 0);
         msg.channel.send({ embeds: [
@@ -164,11 +176,18 @@ async function processCardAction(interaction) {
       await interaction.reply({ content: "Someone is already processing this flag!", ephemeral: true });
       return;
     }
+
     processing.add(flag.id);
 
     const mod = interaction.member,
       embed = u.embed(flag.embeds[0]),
       infraction = await Module.db.infraction.getByFlag(flag);
+
+    if (mod.id == infraction.discordId) {
+      await interaction.reply({ content: "You can't handle your own flag!", ephemeral: true });
+      return processing.delete(flag.id);
+    }
+
 
     // NEED TO ADD RETRACTIONS
 
